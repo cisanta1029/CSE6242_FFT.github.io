@@ -12,17 +12,20 @@ var cb_cuisines=['South America','British Isles','Africa','Thailand','Korea','In
 //var cb_cuisines=['USA']
 const slider_node=document.getElementById("nodefilter")
 const slider_edge=document.getElementById("edgefilter")
+const slider_tfidf=document.getElementById("tfidffilter")
+
 var weight=slider_node.value
 var degree=slider_edge.value
-
-
+var tf_idf=slider_tfidf.value
+var hide = "Yes"
+var label="No"
+var weight_node="No"
 // load the data
 read()
 function read(){
 d3.json("ingredients.json", function(error, _data) {
   if (error) throw error;
   data=_data
-  console.group(data)
   update()
 
  
@@ -41,7 +44,58 @@ d3.select("#nodefilter").on('change',function(){
 d3.select("#edgefilter").on('change',function(){
     degree=slider_edge.value
     update()})
-//REMTOE NON CONNECTED
+d3.select("#tfidffilter").on('change',function(){
+    tf_idf=slider_tfidf.value
+    update()})
+d3.select(".radiohide").on("change", function(){
+    hide = d3.select("input[name='Hidenodes']:checked").node().value
+   update()
+})
+d3.select(".radiolabels").on("change", function(){
+    label = d3.select("input[name='Hidelabels']:checked").node().value
+   
+})
+d3.select(".radioweight").on("change", function(){
+    weight_node = d3.select("input[name='Showweight']:checked").node().value
+    node_weight()
+})
+       
+function node_weight(){
+    
+    total_weight=simulation.nodes()
+    var max_weight=d3.max(total_weight.map(function (d){return d.weight}))
+    var min_weight=d3.min(total_weight.map(function (d){return d.weight}))
+    var scale=d3.scaleLinear()
+        .domain([min_weight,max_weight])
+        .range([1,forceProperties.collide.radius+10])
+    
+    if (weight_node=='Yes'){ 
+        d3.selectAll(".circles").attr('r',function(d) {
+            return (scale(d.weight))})}
+        else if (weight_node=='No'){ 
+                d3.selectAll(".circles").attr('r',forceProperties.collide.radius)}
+
+}
+
+function add_labels(){
+   
+    if (label=='Yes'){ 
+    
+var texts = svg.selectAll()
+    .data(simulation.nodes())
+    .enter().append("text")
+    .attr("class", "label")
+    .attr("fill", "black")
+    .text(function(d) {  return d.id;  });
+
+    texts.attr("transform", function(d) {
+        return "translate(" + d.x + "," + d.y + ")";})
+    //d3.select('#alpha_value').style('flex-basis', (simulation.alpha()*100) + '%');
+}
+else if (label=='No'){svg.selectAll(".label").remove()}
+
+}
+
 function chkSelectall(){
     d3.selectAll(".myCheckbox")
       .property('checked',true)
@@ -50,6 +104,7 @@ function chkUnSelectall(){
     d3.selectAll(".myCheckbox")
     .property('checked',false)
 }
+
 
 
 //Checkbox filter
@@ -105,15 +160,10 @@ function create_table(data,columns){
      create_table(table,['Cuisine','n_recipes','Ranking'])
  }   
 
-function update_checkbox(){
 
-    
-}
 
 //Update of nodes and edges after cuisine filter is aplied
 function update(){  
-    
-
     d3.selectAll(".nodes").remove()
     d3.selectAll(".links").remove()
     
@@ -142,13 +192,14 @@ function update(){
             }).entries(filter_cuisine);
     //Filtering the nodes based in the weight filter, and returning just the key that will be pased to the force simulation
     var nodes_filtered2= nodes_filtered.filter(function(d){return d.value>weight})
-    var nodes_updated=nodes_filtered2.map(function (d){return {id:d.key, weight:d.value}})
+    var nodes_all=nodes_filtered2.map(function (d){return {id:d.key, weight:d.value}})
     var nodes_list=nodes_filtered2.map(function (d){return d.key})
    
     //Filtering the edges by cusine and by the nodes obtained in the previous step,
     var edges_filtered=edges_initial.filter(function(d){ return cb_cuisines.indexOf(d.cuisine) >-1&& nodes_list.indexOf(d.source) >-1 
         && nodes_list.indexOf(d.target) >-1 })
-                    .map(function(d){return{source:d.source,target:d.target,degree:d.count}})
+                            .map(function(d){return{source:d.source,target:d.target,degree:d.count,source_count:d.source_count,target_count:d.target_count,
+            n_recipes:d.n_recipes}})
 
     //Group by and sum degrees of filtered edges (missing python pandas here...)
     var helper={};
@@ -158,20 +209,50 @@ function update(){
         helper[key]=Object.assign({},o);
         r.push(helper[key]);
     } else {
-        helper[key].degree+=o.degree;
+        helper[key].degree+=o.degree
+        helper[key].source_count+=o.source_count
+        helper[key].target_count+=o.target_count
+        helper[key].n_recipes+=o.n_recipes
     }
     return r;
     } ,[]);
-    var edges_updated= edges_filtered_group.filter(function(d){return d.degree>degree})
+  
+    var edges_filtered_group_tfidf=edges_filtered_group.map(function(d){
+        return{source:d.source,
+            target:d.target,
+            degree:d.degree,
+            tf_idf:(1+Math.log10(1+d.degree)*Math.log10(d.n_recipes/(d.source_count+d.target_count)))
+    }
+    })
+    var edges_updated= edges_filtered_group_tfidf.filter(function(d){return d.degree>degree&& d.tf_idf>tf_idf})
     
+    //Variable to filter the nodes that have no edges, which will be filtered uppon button click
+    var edge_id_arr = []
+    for (edge of edges_updated) {
+        edge_id_arr.push(edge.source);
+        edge_id_arr.push(edge.target);
+    }
+    var nodes_hide= nodes_all.filter(function(d){
+        return edge_id_arr.indexOf(d.id) >-1
+    });
+   
     var graph=[]
-    graph['nodes']=nodes_updated
-    graph['links']=edges_updated
-    var selected_node=graph['nodes'][0]['id']
-    console.log(selected_node)
 
-   initializeDisplay(graph);
-   initializeSimulation(graph);
+    if (hide=="No"){graph['nodes']=nodes_all} else if (hide=="Yes") {graph['nodes']=nodes_hide}  
+    graph['links']=edges_updated
+
+    //Code to retrieve top edges
+    //var topData = edges_updated.sort(function(a, b) {
+        //return d3.descending(+a.degree, +b.degree);}).slice(0, 10);//top 10 here
+       // console.log(edges_updated)
+        //console.log(topData)
+  
+  initializeDisplay(graph);
+  initializeSimulation(graph);
+  
+//INICIAR CON TABLA
+//DISPLAY TEXT?
+//NODES BY SIZE
  
 }
 //Similar than update, but called when updating any of the UI force bars
@@ -206,7 +287,8 @@ function update2(){
     //Filtering the edges by cusine and by the nodes obtained in the previous step,
     var edges_filtered=edges_initial.filter(function(d){ return cb_cuisines.indexOf(d.cuisine) >-1&& nodes_list.indexOf(d.source) >-1 
         && nodes_list.indexOf(d.target) >-1 })
-                    .map(function(d){return{source:d.source,target:d.target,degree:d.count}})
+                    .map(function(d){return{source:d.source,target:d.target,degree:d.count,source_count:d.source_count,target_count:d.target_count,
+                    n_recipes:d.n_recipes}})
 
     //Group by and sum degrees of filtered edges (missing python pandas here...)
     var helper={};
@@ -216,16 +298,29 @@ function update2(){
         helper[key]=Object.assign({},o);
         r.push(helper[key]);
     } else {
-        helper[key].degree+=o.degree;
+        helper[key].degree+=o.degree
+        helper[key].source_count+=o.source_count
+        helper[key].target_count+=o.target_count
+        helper[key].n_recipes=o.n_recipes
+        ;
     }
     return r;
-    } ,[]);
-    var edges_updated= edges_filtered_group.filter(function(d){return d.degree>degree})
     
+    } ,[]);
+    var edges_filtered_group_tfidf=edges_filtered_group.map(function(d){
+        return{source:d.source,
+            target:d.target,
+            degree:d.degree,
+            tf_idf:(1+Math.log10(1+d.degree)*Math.log10(d.n_recipes/(d.source_count+d.target_count)))
+    }
+    })
+    
+  
+    var edges_updated= edges_filtered_group_tfidf.filter(function(d){return d.degree>degree&& d.tf_idf>tf_idf})
+    console.log(tf_idf)
     var graph=[]
     graph['nodes']=nodes_updated
     graph['links']=edges_updated
-    var selected_node=graph['nodes'][0]['id']
     
 
    updateForces(graph);
@@ -242,25 +337,28 @@ var simulation = d3.forceSimulation();
 // set up the simulation and event to update locations after each tick
 function initializeSimulation(graph) {
   simulation.nodes(graph.nodes);
+  
   initializeForces(graph);
   simulation.on("tick", ticked);
 }
 
 // values for all forces
+
 forceProperties = {
+    
     center: {
         x: 0.4,
         y: 0.5
     },
     charge: {
         enabled: true,
-        strength: -30,
+        strength: -60,
         distanceMin: 1,
-        distanceMax: 2000
+        distanceMax: 1000
     },
     collide: {
         enabled: true,
-        strength: .7,
+        strength: .3,
         iterations: 1,
         radius: 5
     },
@@ -283,6 +381,7 @@ forceProperties = {
 
 // add forces to the simulation
 function initializeForces(graph) {
+ 
     // add forces and associate each with a name
     simulation
         .force("link", d3.forceLink())
@@ -298,14 +397,16 @@ function initializeForces(graph) {
 
 // apply new force properties
 function updateForces(graph) {
-    
+    var initial_strenght=0
+    if (hide=='Yes'){initial_strenght=-100} else if(hide=='No'){initial_strenght=-20}
+    console.log(initial_strenght)
    
     // get each force by name and update the properties
     simulation.force("center")
         .x(width * forceProperties.center.x)
         .y(height * forceProperties.center.y);
     simulation.force("charge")
-        .strength(forceProperties.charge.strength * forceProperties.charge.enabled)
+        .strength(initial_strenght * forceProperties.charge.enabled)
         .distanceMin(forceProperties.charge.distanceMin)
         .distanceMax(forceProperties.charge.distanceMax);
     simulation.force("collide")
@@ -336,7 +437,6 @@ function updateForces(graph) {
 
 // generate the svg objects and force simulation
 function initializeDisplay(graph) {
-    //console.log (graph.links)
   // set the data and properties of link lines
   link = svg.append("g")
         .attr("class", "links")
@@ -349,7 +449,9 @@ function initializeDisplay(graph) {
         .attr("class", "nodes")
     .selectAll("circle")
     .data(graph.nodes)
-    .enter().append("circle")
+    .enter()
+    .append("circle")
+    .attr("class", "circles")
         .call(d3.drag()
             .on("start", dragstarted)
             .on("drag", dragged)
@@ -358,20 +460,23 @@ function initializeDisplay(graph) {
   node.append("title")
       .text(function(d) { return d.id; });
   //selecting node
-  node.on('click',function(d)
+  node.on('click',function(d,i)
   {d3.selectAll(".selected_node").remove()
+  d3.selectAll(".circles")
+  .style('fill','rgb(192, 2, 2)')
+  .attr("stroke", forceProperties.charge.strength > 0 ? "green" : "red")
+  .attr("stroke-width", forceProperties.charge.enabled==false ? 0 : Math.abs(forceProperties.charge.strength)/15)
+  //.attr("r", forceProperties.collide.radius);
+  node_weight()
     selected_node=d.id,
-    console.log(selected_node)
+    d3.select(this)
+    .attr('r','12')
+    .style('fill','green')
+    .attr("stroke", 'green')
      d3.select('body').append("text")
     .attr("class", "selected_node")
     .text(selected_node);create_table(table,['Cuisine','n_recipes','Ranking'])})
-
     
-    //selected_node=d3.selectAll(".selected_node")
-    //create_table(table,['Cuisine','n_recipes','Ranking']) 
-    
-
-
 
   // visualize the graph
   updateDisplay();
@@ -383,10 +488,9 @@ function initializeDisplay(graph) {
 // update the display based on the forces (but not positions)
 function updateDisplay() {
     node
-        .attr("r", forceProperties.collide.radius)
         .attr("stroke", forceProperties.charge.strength > 0 ? "green" : "red")
         .attr("stroke-width", forceProperties.charge.enabled==false ? 0 : Math.abs(forceProperties.charge.strength)/15);
-
+    node_weight()
     link
         .attr("stroke-width", forceProperties.link.enabled ? 1 : .5)
         .attr("opacity", forceProperties.link.enabled ? 1 : 0);
@@ -394,6 +498,9 @@ function updateDisplay() {
 
 // update the display positions after each simulation tick
 function ticked() {
+    d3.selectAll('.label').remove()
+    //d3.selectAll(".circles").attr('r',forceProperties.collide.radius)
+
     link
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
@@ -402,9 +509,15 @@ function ticked() {
 
     node
         .attr("cx", function(d) { return d.x; })
-        .attr("cy", function(d) { return d.y; });
-    d3.select('#alpha_value').style('flex-basis', (simulation.alpha()*100) + '%');
-}
+        .attr("cy", function(d) { return d.y; })
+        //.attr('r', function(d) { return d.weight/200});
+  //
+
+add_labels()
+//node_weight()
+d3.select('#alpha_value').style('flex-basis', (simulation.alpha()*100) + '%');
+};
+
 
 //.attr("class", "links")
 
