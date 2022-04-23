@@ -28,6 +28,9 @@ body{
   padding-bottom:5px;
   
 }
+
+
+
 .controls .force {
   background-color:#eee;
   border-radius: 3px;
@@ -35,6 +38,14 @@ body{
   margin: 5px 0;
 }
 
+
+.controls_nodes {
+ 
+  position:absolute;
+  top:300px;
+  left:600px;
+  
+}
 
 .checkboxes {
   position:absolute;
@@ -59,6 +70,8 @@ body{
   vertical-align: top;
 }
 
+
+
 .buttons {
   position:absolute;
   top:570px;
@@ -74,12 +87,37 @@ body{
 .buttons ul li {
   vertical-align: top;
   padding-bottom:5px;
-  width: 400px;
+  width: 120px;
 }
 
-.button{
-  width: 90px;
+.radiohide {
+  position:absolute;
+  top:570px;
+  left:500px;
+  margin-left: 4px;
+  
 }
+
+
+
+
+.radiolabels {
+  position:absolute;
+  top:570px;
+  left:700px;
+  margin-left: 4px;
+  
+}
+
+.radioweight {
+  position:absolute;
+  top:570px;
+  left:900px;
+  margin-left: 4px;
+  
+}
+
+
 .table {
   position:absolute;
   top:65px;
@@ -156,21 +194,26 @@ svg {
 </div>
 <div class="controls">
   <div class="force">
-    <p><label>importance</label> Filters nodes by frequency and by degree</p>
+    <p><label>importance:</label> Filters nodes by frequency, degree and tf_idf parameter</p>
     <label title='The total number of times that the ingredient (node) appears in the total number of recipes selected'>
       Frequency
       <output id="nodefilterout">100</output>
-      <input id="nodefilter" type="range" min="0" max="1000" value="100" step="1" oninput="d3.select('#nodefilterout').text(value);">
+      <input id="nodefilter" type="range" min="0" max="500" value="50" step="1" oninput="d3.select('#nodefilterout').text(value);">
     </label>
     <label title='Degrees of the node (ingredients), or number of connections with other ingredients'>
       Degree
       <output id="edgefilterout">300</output>
-      <input id="edgefilter" type="range" min="0" max="10000" value="500" step="1" oninput="d3.select('#edgefilterout').text(value);">
+      <input id="edgefilter" type="range" min="0" max="1000" value="300" step="1" oninput="d3.select('#edgefilterout').text(value);">
+    </label>
+    <label title='TF-IDF (ingredient pair frequency-inverse recipe frequency) parameter'>
+      TF-IDF
+      <output id="tfidffilterout">0</output>                                                        
+      <input id="tfidffilter" type="range" min="0" max="5" value="0" step="0.25" oninput="d3.select('#tfidffilterout').text(value);">
     </label>
   </div>
 
   <div class="force">
-    <p><label>center</label> Shifts the view, so the graph is centered at this location.</p>
+    <p><label>center:</label> Shifts the view, so the graph is centered at this location.</p>
     <label>
       x
       <output id="center_XSliderOutput">.4</output>
@@ -186,36 +229,36 @@ svg {
   <div class="force">
     <p><label><input type="checkbox" checked onchange="forceProperties.charge.enabled = this.checked;"> charge</label> Attracts (+) or repels (-) nodes to/from each other.</p>
     <label title="Negative strength repels nodes. Positive strength attracts nodes.">
-      strength
-      <output id="charge_StrengthSliderOutput">-30</output>
-      <input type="range" min="-200" max="50" value="-30" step=".1" oninput="d3.select('#charge_StrengthSliderOutput').text(value); forceProperties.charge.strength=value;">
+      strength:
+      <output id="charge_StrengthSliderOutput">-60</output>
+      <input type="range" min="-200" max="50" value="-60" step=".1" oninput="d3.select('#charge_StrengthSliderOutput').text(value); forceProperties.charge.strength=value;">
     </label>
     <label title="Minimum distance where force is applied">
-      distanceMin
+      distanceMin:
       <output id="charge_distanceMinSliderOutput">1</output>
       <input type="range" min="0" max="50" value="1" step=".1" oninput="d3.select('#charge_distanceMinSliderOutput').text(value); forceProperties.charge.distanceMin=value;">
     </label>
     <label title="Maximum distance where force is applied">
-      distanceMax
-      <output id="charge_distanceMaxSliderOutput">2000</output>
-      <input type="range" min="0" max="2000" value="2000" step=".1" oninput="d3.select('#charge_distanceMaxSliderOutput').text(value); forceProperties.charge.distanceMax=value;">
+      distanceMax:
+      <output id="charge_distanceMaxSliderOutput">1000</output>
+      <input type="range" min="0" max="2000" value="1000" step=".1" oninput="d3.select('#charge_distanceMaxSliderOutput').text(value); forceProperties.charge.distanceMax=value;">
     </label>
   </div>
 
   <div class="force">
     <p><label><input type="checkbox" checked onchange="forceProperties.collide.enabled = this.checked;"> collide</label> Prevents nodes from overlapping</p>
     <label>
-      strength
+      strength:
       <output id="collide_StrengthSliderOutput">.7</output>
       <input type="range" min="0" max="2" value=".7" step=".1" oninput="d3.select('#collide_StrengthSliderOutput').text(value); forceProperties.collide.strength=value;">
     </label>
     <label title="Size of nodes">
-      radius
+      radius:
       <output id="collide_radiusSliderOutput">5</output>
       <input type="range" min="0" max="100" value="50" step="1" oninput="d3.select('#collide_radiusSliderOutput').text(value); forceProperties.collide.radius=value;">
     </label>
     <label title="Higher values increase rigidity of the nodes (WARNING: high values are computationally expensive)">
-      iterations
+      iterations:
       <output id="collide_iterationsSliderOutput">1</output>
       <input type="range" min="1" max="10" value="1" step="1" oninput="d3.select('#collide_iterationsSliderOutput').text(value); forceProperties.collide.iterations=value;">
     </label>
@@ -224,12 +267,12 @@ svg {
   <div class="force">
     <p><label><input  type="checkbox" checked onchange="forceProperties.forceX.enabled = this.checked;"> forceX</label> Acts like gravity. Pulls all points towards an X location.</p>
     <label>
-      strength
+      strength:
       <output id="forceX_StrengthSliderOutput">.1</output>
       <input id="forceX_StrengthSliderInput" type="range" min="0" max="1" value=".5" step="0.01" oninput="d3.select('#forceX_StrengthSliderOutput').text(value); forceProperties.forceX.strength=value;">
     </label>
     <label title="The X location that the force will push the nodes to (NOTE: This demo multiplies by the svg width)">
-      x
+      x:
       <output id="forceX_XSliderOutput">.5</output>
       <input type="range" min="0" max="1" value=".1" step="0.01" oninput="d3.select('#forceX_XSliderOutput').text(value); forceProperties.forceX.x=value;">
     </label>
@@ -238,12 +281,12 @@ svg {
   <div class="force">
     <p><label><input type="checkbox" checked onchange="forceProperties.forceY.enabled = this.checked;"> forceY</label> Acts like gravity. Pulls all points towards a Y location.</p>
     <label>
-      strength
+      strength:
       <output id="forceY_StrengthSliderOutput">.1</output>
       <input type="range" min="0" max="1" value=".1" step="0.01" oninput="d3.select('#forceY_StrengthSliderOutput').text(value); forceProperties.forceY.strength=value;">
     </label>
     <label title="The Y location that the force will push the nodes to (NOTE: This demo multiplies by the svg height)">
-      y
+      y:
       <output id="forceY_YSliderOutput">.5</output>
       <input type="range" min="0" max="1" value=".1" step="0.01" oninput="d3.select('#forceY_YSliderOutput').text(value); forceProperties.forceY.y=value;">
     </label>
@@ -252,18 +295,36 @@ svg {
   <div class="force">
     <p><label><input type="checkbox" checked onchange="forceProperties.link.enabled = this.checked;"> link</label> Sets link length</p>
     <label title="The force will push/pull nodes to make links this long">
-      distance
+      distance:
       <output id="link_DistanceSliderOutput">30</output>
       <input type="range" min="0" max="100" value="30" step="1" oninput="d3.select('#link_DistanceSliderOutput').text(value); forceProperties.link.distance=value;">
     </label>
     <label title="Higher values increase rigidity of the links (WARNING: high values are computationally expensive)">
-      iterations
+      iterations:
       <output id="link_IterationsSliderOutput">1</output>
-      python -m http.server 888 &.<input type="range" min="1" max="10" value="1" step="1" oninput="d3.select('#link_IterationsSliderOutput').text(value); forceProperties.link.iterations=value;">
+     <input type="range" min="1" max="10" value="1" step="1" oninput="d3.select('#link_IterationsSliderOutput').text(value); forceProperties.link.iterations=value;">
     </label>
   </div>
 </div>
+<div class="radiohide">
+  <p><label><b>Hide non connected nodes</b></p>
+  <input type="radio" name="Hidenodes" value="Yes" checked>Yes<br>
+  <input type="radio" name="Hidenodes" value="No" > No<br>
+</div>
+<div class="radiolabels">
+    <p><label><b>Display labels</b></p>
+    <input type="radio" name="Hidelabels" value="Yes"> Yes<br>
+    <input type="radio" name="Hidelabels" value="No" checked>No<br>
+    
+</div>
+<div class="radioweight">
+  <p><label><b>Node weight</b></p>
+  <input type="radio" name="Showweight" value="Yes"> Yes<br>
+  <input type="radio" name="Showweight" value="No" checked>No<br>
+  
+</div>
 
+  </div>
   <div class="checkboxes" >
     <ul>
     <li><input type="checkbox" class="myCheckbox" id="Africa" value="Africa" checked> Africa</li>
